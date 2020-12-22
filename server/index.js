@@ -4,7 +4,7 @@ const  http = require('http')
 const cors = require('cors')
 
 const Router = require('./router')
-const {addUser, removeUser, getUser, getUserInRoom} = require('./users');
+const {addUser, removeUser, getUser, getUsersInRoom} = require('./users');
 
 const PORT = process.env.PORT || 5000;
 
@@ -29,6 +29,7 @@ io.on('connection', (socket)=>{
         socket.broadcast.to(user.room).emit('message', {user:'admin', text:`${user.name} has joined!`});
 
         socket.join(user.room);
+        io.to(user.room).emit('roomData', {room : user.room, users:getUsersInRoom(user.room)});
         // callback();
     })
 
@@ -36,10 +37,16 @@ io.on('connection', (socket)=>{
         const user = getUser(socket.id);
         
         io.to(user.room).emit('message', {user:user.name, text:message})
+        io.to(user.room).emit('roomData', {room:user.room, users:getUsersInRoom(user.room)});
     })
 
     socket.on('disconnect', ()=>{
-        console.log("client disconnected");
+        const user = removeUser(socket.id);
+
+        if(user){
+            io.to(user.room).emit('message', {user:'admin', text:`${user.name} has left!}`});
+            io.to(user.room).emit('roomData', {room:user.room, users:getUsersInRoom(user.room)});
+        }
     })
 })
 
@@ -47,4 +54,4 @@ app.use('/', Router);
 
 
 
-server.listen(PORT, ()=> console.log(`Server started @ ${PORT}`));
+server.listen(PORT, "0.0.0.0", ()=> console.log(`Server started @ ${PORT}`));
